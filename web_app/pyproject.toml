@@ -1,0 +1,11 @@
+[project]
+name = "gamma-telescope-web-app"
+version = "0.1.0"
+description = "A streamlit app to interact with a classification model for the gamma telescope dataset."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "plotly>=6.7.0",
+    "python-dotenv>=1.2.2",
+    "streamlit>=1.57.0",
+]
