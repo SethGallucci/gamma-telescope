@@ -6,7 +6,7 @@ import random
 from dotenv import load_dotenv
 from datetime import datetime
 
-load_dotenv("../aws/infrastructure.env")
+load_dotenv("../aws/.env")
 bucket_name = os.getenv("BUCKET_NAME")
 
 s3_client = boto3.client("s3")
