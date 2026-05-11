@@ -84,9 +84,9 @@ with col_inputs:
     # Preset Buttons
     btn_col1, btn_col2 = st.columns(2)
     with btn_col1:
-        st.button("Load Typical Gamma", on_click=load_gamma_preset, use_container_width=True)
+        st.button("Load Typical Gamma", on_click=load_gamma_preset, width='stretch')
     with btn_col2:
-        st.button("Load Typical Hadron", on_click=load_hadron_preset, use_container_width=True)
+        st.button("Load Typical Hadron", on_click=load_hadron_preset, width='stretch')
     
     st.write("") 
     
@@ -99,7 +99,7 @@ with col_inputs:
     st.write("")
     
     # We assign the button to a variable here, but run the logic in the next column
-    classify_clicked = st.button("Classify Particle", type="primary", use_container_width=True)
+    classify_clicked = st.button("Classify Particle", type="primary", width='stretch')
 
 
 with col_viz:
@@ -127,7 +127,7 @@ with col_viz:
         plot_bgcolor='rgba(0,0,0,0)',
         font=dict(color='white')
     )
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
     # The classification logic is executed here, so the alert renders directly under the visualization
     if classify_clicked:
@@ -186,7 +186,7 @@ with col_history:
             .map(highlight_results, subset=['Result'])
         )
         
-        st.dataframe(styled_df, use_container_width=True, hide_index=True)
+        st.dataframe(styled_df, width='stretch', hide_index=True)
     else:
         st.info("Adjust sliders and click ***Classify Particle*** to begin.")
 
