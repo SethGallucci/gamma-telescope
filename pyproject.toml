@@ -1,4 +1,4 @@
-[workspace]
+[tool.uv.workspace]
 members = [
     "web_app",
     "mock_data_source",
