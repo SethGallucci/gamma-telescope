@@ -1,0 +1,42 @@
+name: Deploy Web App to Hugging Face
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - "web_app/**"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout GitHub repo
+        uses: actions/checkout@v4
+
+      - name: Clone Hugging Face Space
+        run: |
+          git clone https://seth-gallucci27:${{ secrets.HUGGINGFACE_TOKEN }}@huggingface.co/spaces/seth-gallucci27/MAGIC-gamma-telescope huggingface-space
+
+      - name: Copy application files
+        run: |
+          rsync -av --delete \
+            web_app/Dockerfile \
+            web_app/main.py \
+            web_app/pyproject.toml \
+            web_app/uv.lock \
+            huggingface-space/
+
+      - name: Replace README for Hugging Face
+        run: |
+          cp web_app/README.huggingface.md huggingface-space/README.md
+
+      - name: Commit and Push changes
+        run: |
+          cd huggingface-space
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          git add .
+          git commit -m "Auto deploy from GitHub" || echo "No changes to commit"
+          git push origin HEAD:main
