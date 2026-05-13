@@ -1,89 +1,206 @@
 """
-Test Script for Gamma Telescope Classification MLOps Project
-============================================================
+Smoke test for the deployed Gamma Telescope model endpoint.
 
-Sends a sample gamma telescope event to the live Databricks Model Serving
-endpoint and prints the prediction response.
+Purpose
+-------
+Validate that the live Databricks serving endpoint:
 
-This verifies the end-to-end deployed prediction path:
-local script -> Databricks Serving Endpoint -> registered ML model -> prediction
+1. Is reachable
+2. Authenticates successfully
+3. Accepts a valid inference payload
+4. Returns a non-empty predictions field
 
-Requirements:
-    pip install requests pandas
+Exit Codes
+----------
+0 = Success
+1 = Test failed
 
-Required environment variables:
-    DATABRICKS_HOST      Databricks workspace URL
-    DATABRICKS_TOKEN     Databricks personal access token
-    
+Required Environment Variables
+------------------------------
+DATABRICKS_URL
+DATABRICKS_TOKEN
 
-Example setup:
-    export DATABRICKS_HOST="https://dbc-24fb6b05-9f8e.cloud.databricks.com"
-    export DATABRICKS_TOKEN="your_token_here"
-    
-
-Usage:
-    python test_project.py
+Usage
+-----
+python test_end_to_end.py
 """
 
+from __future__ import annotations
+
+import logging
 import os
 import sys
+from dataclasses import dataclass
+from typing import Any
+
 import requests
-import pandas as pd
 from dotenv import load_dotenv
 
+# Load local .env file if present
 load_dotenv()
 
+# ---------------------------------------------------------------------
+# Logging
+# ---------------------------------------------------------------------
 
-def get_env(name):
-    value = os.getenv(name)
-    if not value:
-        print(f"FAIL: Missing required environment variable: {name}")
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s: %(message)s",
+)
+
+logger = logging.getLogger(__name__)
+
+# ---------------------------------------------------------------------
+# Configuration
+# ---------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class Settings:
+    """Runtime configuration loaded from environment."""
+    url: str
+    token: str
+    timeout_seconds: int = 30
+
+
+def load_settings() -> Settings:
+    """Load required environment variables."""
+    url = os.getenv("DATABRICKS_URL")
+    token = os.getenv("DATABRICKS_TOKEN")
+
+    missing = []
+
+    if not url:
+        missing.append("DATABRICKS_URL")
+
+    if not token:
+        missing.append("DATABRICKS_TOKEN")
+
+    if missing:
+        logger.error(
+            "Missing required environment variables: %s",
+            ", ".join(missing),
+        )
         sys.exit(1)
-    return value
+
+    return Settings(
+        url=url,
+        token=token,
+    )
 
 
-def main():
-    url = get_env("DATABRICKS_HOST")
-    token = get_env("DATABRICKS_TOKEN")
+# ---------------------------------------------------------------------
+# Request Payload
+# ---------------------------------------------------------------------
 
+
+def build_payload() -> dict[str, Any]:
+    """
+    Build a minimal valid inference payload.
+
+    Uses Databricks / MLflow dataframe_records format.
+    """
+    return {
+        "dataframe_records": [
+            {
+                "f_length": 28.8,
+                "f_size": 2.6,
+                "f_conc1": 0.20,
+                "f_m3long": 22.0,
+                "f_alpha": 18.0,
+            }
+        ]
+    }
+
+
+# ---------------------------------------------------------------------
+# HTTP Request
+# ---------------------------------------------------------------------
+
+
+def request_prediction(settings: Settings) -> dict[str, Any]:
+    """Send request to endpoint and return parsed JSON."""
     headers = {
-        "Authorization": f"Bearer {token}",
+        "Authorization": f"Bearer {settings.token}",
         "Content-Type": "application/json",
     }
 
-    # Sample input matching the full pipeline model's expected raw features
-    sample_df = pd.DataFrame([{
-    "f_length": 28.8,
-    "f_size": 2.6,
-    "f_conc1": 0.20,
-    "f_m3long": 22.0,
-    "f_alpha": 18.0,
-}])
+    logger.info("Sending smoke test request...")
 
-    payload = {
-        "dataframe_split": sample_df.to_dict(orient="split")
-    }
+    try:
+        response = requests.post(
+            url=settings.url,
+            headers=headers,
+            json=build_payload(),
+            timeout=settings.timeout_seconds,
+        )
 
-
-    resp = requests.post(url, headers=headers, json=payload, timeout=60)
-
-    if resp.status_code != 200:
-        print(f"FAIL: Got status {resp.status_code}")
-        print(resp.text)
+    except requests.Timeout:
+        logger.error(
+            "Request timed out after %s seconds.",
+            settings.timeout_seconds,
+        )
         sys.exit(1)
 
-    result = resp.json()
+    except requests.RequestException:
+        logger.error("Network request failed.")
+        sys.exit(1)
 
-    print("\nPrediction response:")
-    print(result)
+    if response.status_code != 200:
+        logger.error(
+            "Endpoint returned unexpected HTTP status: %s",
+            response.status_code,
+        )
+        sys.exit(1)
 
-    # Databricks usually returns predictions in a "predictions" key
-    if "predictions" in result:
-        print(f"\nPrediction: {result['predictions']}")
-    else:
-        print("\nPrediction key not found, but response was returned successfully.")
+    try:
+        return response.json()
 
-    print("\nPASS")
+    except ValueError:
+        logger.error("Endpoint returned non-JSON response.")
+        sys.exit(1)
+
+
+# ---------------------------------------------------------------------
+# Validation
+# ---------------------------------------------------------------------
+
+
+def validate_result(result: dict[str, Any]) -> None:
+    """Validate expected response structure."""
+    predictions = result.get("predictions")
+
+    if predictions is None:
+        logger.error("Response missing predictions field.")
+        sys.exit(1)
+
+    if not isinstance(predictions, list):
+        logger.error("Predictions field had unexpected type.")
+        sys.exit(1)
+
+    if len(predictions) == 0:
+        logger.error("Predictions field was empty.")
+        sys.exit(1)
+
+    logger.info(
+        "Smoke test succeeded. Received %d prediction(s).",
+        len(predictions),
+    )
+
+
+# ---------------------------------------------------------------------
+# Main
+# ---------------------------------------------------------------------
+
+
+def main() -> None:
+    """Run smoke test."""
+    settings = load_settings()
+
+    result = request_prediction(settings)
+
+    validate_result(result)
+
     sys.exit(0)
 
 
