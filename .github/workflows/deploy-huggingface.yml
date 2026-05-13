@@ -1,4 +1,4 @@
-name: Deploy Web App to Hugging Face
+name: CI/CD - Test and Deploy Web App
 
 on:
   push:
@@ -6,20 +6,51 @@ on:
       - main
     paths:
       - "web_app/**"
+      - "testing/**"
+      - ".github/workflows/**"
 
 jobs:
-  deploy:
+  test:
+    name: Run Smoke Test
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout GitHub repo
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set Up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install uv
+        run: python -m pip install --upgrade pip uv
+
+      - name: Sync Testing Environment
+        run: uv sync --project testing --frozen
+
+      - name: Run Smoke Test
+        env:
+          DATABRICKS_URL: ${{ secrets.DATABRICKS_URL }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: uv run --project testing python testing/test_end_to_end.py
+
+  deploy:
+    name: Deploy to Hugging Face
+    needs: test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
         uses: actions/checkout@v4
 
       - name: Clone Hugging Face Space
         run: |
-          git clone https://seth-gallucci27:${{ secrets.HUGGINGFACE_TOKEN }}@huggingface.co/spaces/seth-gallucci27/MAGIC-gamma-telescope huggingface-space
+          git clone https://huggingface.co/spaces/seth-gallucci27/MAGIC-gamma-telescope huggingface-space
+          cd huggingface-space
+          git remote set-url origin https://seth-gallucci27:${{ secrets.HUGGINGFACE_TOKEN }}@huggingface.co/spaces/seth-gallucci27/MAGIC-gamma-telescope
 
-      - name: Copy application files
+      - name: Copy Application Files
         run: |
           rsync -av --delete \
             web_app/Dockerfile \
@@ -32,7 +63,7 @@ jobs:
         run: |
           cp web_app/README.huggingface.md huggingface-space/README.md
 
-      - name: Commit and Push changes
+      - name: Commit and Push Changes
         run: |
           cd huggingface-space
           git config user.name "github-actions"
