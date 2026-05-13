@@ -60,7 +60,7 @@ class Settings:
     """Runtime configuration loaded from environment."""
     url: str
     token: str
-    timeout_seconds: int = 30
+    timeout_seconds: int = 120
 
 
 def load_settings() -> Settings:
