@@ -1,10 +1,11 @@
+import os
+import random
+import time
+from datetime import datetime
+
 import boto3
 import pandas as pd
-import os
-import time
-import random
 from dotenv import load_dotenv
-from datetime import datetime
 
 load_dotenv("../aws/.env")
 bucket_name = os.getenv("BUCKET_NAME")
@@ -32,7 +33,7 @@ def simulate_telescope_stream(
         if current_row + chunk_size > total_rows:
             chunk_size = total_rows - current_row
 
-        chunk = df.iloc[current_row: current_row + chunk_size]
+        chunk = df.iloc[current_row : current_row + chunk_size]
         current_row += chunk_size
 
         now = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
@@ -49,5 +50,6 @@ def simulate_telescope_stream(
         time.sleep(delay_seconds)
 
     print("Stream complete. All data beamed to AWS.")
+
 
 simulate_telescope_stream(source_csv="data/magic04.data")
