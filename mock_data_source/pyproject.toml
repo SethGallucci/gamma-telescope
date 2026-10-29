@@ -3,7 +3,7 @@ name = "mock_data_source"
 version = "0.1.0"
 description = "Takes a static, singe csv of the telescope data, and uploads it as chunks to an S3 bucket to simulate batched uploads."
 readme = "README.md"
-requires-python = ">=3.12"
+requires-python = ">=3.13"
 dependencies = [
     "boto3>=1.43.6",
     "pandas>=3.0.2",

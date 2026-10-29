@@ -1,0 +1,12 @@
+[project]
+name = "training"
+version = "0.1.0"
+description = "Prepares the MAGIC gamma telescope data and trains a gamma/hadron logistic regression classifier with PySpark."
+readme = "README.md"
+authors = [{ name = "Seth Gallucci", email = "sethgallucci@yahoo.com" }]
+requires-python = ">=3.13"
+dependencies = ["pyspark==4.1.1"]
+
+[build-system]
+requires = ["uv_build>=0.12.13,<0.13.0"]
+build-backend = "uv_build"
